@@ -1,40 +1,58 @@
 (function() {
-    console.log('[CS2 Wear Helper] script running');    
-    const originalGetEscapedNameForItem = GetEscapedNameForItem;
+    console.log('[CS2 Helper] Script loaded. Waiting for inventory...');
+    function updateItemInfo(container) {
+        if (!container) return;
+        if (!container.textContent.includes("Counter-Strike 2")) return;
 
-    window.GetEscapedNameForItem = function(item) {
-        try {
-            // check if this is a CS2 item with exterior tag
-            if (item && item.description && 
-                item.description.tags && 
-                item.description.appid == 730) {
+        const nameHeader = container.querySelector('h1');
+        if (!nameHeader) return;
+        if (nameHeader.getAttribute('data-cs2-patched') === 'true') return;
 
-                // find exterior tag
-                const exteriorTag = item.description.tags.find(tag => tag.category === "Exterior");
-                
-                if (exteriorTag && item.description.name) {
-                    // Only modify if it doesn't already have wear condition
-                    if (!item.description.name.includes("(Field-Tested)") && 
-                        !item.description.name.includes("(Well-Worn)") && 
-                        !item.description.name.includes("(Battle-Scarred)") && 
-                        !item.description.name.includes("(Minimal Wear)") && 
-                        !item.description.name.includes("(Factory New)")) {
-                        
-                        // get wear condition
-                        const wearCondition = exteriorTag.localized_tag_name;
-
-                        // update the name
-                        if (wearCondition !== "Not Painted") {
-                            item.description.name = `${item.description.name} (${wearCondition})`;
-                            console.log(`[CS2 Wear Helper] Modified item name: ${item.description.name}`);
-                        }   
-                    }
-                }
+        const allSpans = container.querySelectorAll('span');
+        let wearValue = null;
+        for (const span of allSpans) {
+            const text = span.textContent.trim();
+            if (text.startsWith("Exterior:")) {
+                wearValue = text.split(':')[1].trim();
+                break;
             }
-        } catch (e) {
-            console.error('[CS2 Wear Helper] Error in GetEscapedNameForItem hook:', e);
         }
-        // Call original function with modified item
-        return originalGetEscapedNameForItem.apply(this, arguments);
+
+        if (wearValue && wearValue !== "Not Painted") {
+            const currentName = nameHeader.textContent;
+            if (!currentName.includes(wearValue)) {
+                nameHeader.textContent = `${currentName} (${wearValue})`;
+                nameHeader.setAttribute('data-cs2-patched', 'true');
+            }
+        }
+    }
+
+    const observerCallback = function(mutations) {
+        mutations.forEach((mutation) => {
+            const target = mutation.target;
+            const container0 = document.getElementById('iteminfo0');
+            const container1 = document.getElementById('iteminfo1');
+            if (container0 && container0.contains(target)) {
+                updateItemInfo(container0);
+            }
+            if (container1 && container1.contains(target)) {
+                updateItemInfo(container1);
+            }
+        });
     };
+
+    const observer = new MutationObserver(observerCallback);
+    const inventoryRight = document.querySelector('.inventory_page_right');
+    if (inventoryRight) {
+        observer.observe(inventoryRight, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
+    } else {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
 })();

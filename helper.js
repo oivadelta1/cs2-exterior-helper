@@ -13,5 +13,4 @@ function initialize() {
     addWearToItemNames();
 }
 
-console.log('[CS2 Wear Helper] Extension loaded');
 initialize();
